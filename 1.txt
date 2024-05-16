@@ -1,0 +1,1063 @@
+<template>
+  <div class="main--content">
+    <div class="overview">
+      <div class="title">
+        <h2 class="section--title">数据</h2>
+        <el-select v-model="selectedDate" placeholder="请选择日期" class="dropdown">
+          <el-option label="今天" value="today"></el-option>
+          <el-option label="上周" value="lastweek"></el-option>
+          <el-option label="上个月" value="lastmonth"></el-option>
+          <el-option label="去年" value="lastyear"></el-option>
+          <el-option label="所有时间" value="alltime"></el-option>
+        </el-select>
+      </div>
+      <div class="cards">
+        <el-card v-for="(card, index) in cards" :key="index" :class="'card-' + (index + 1)" :header="card.title">
+          <div class="card--data">
+            <div class="card--content">
+              <h1>{{ card.data }}</h1>
+            </div>
+            <i :class="'el-icon-' + card.icon + ' card--icon--lg'"></i>
+          </div>
+          <div class="card--stats">
+            <span v-for="(stat, i) in card.stats" :key="i">
+              <i :class="'el-icon-' + stat.icon + ' card--icon stat--icon'"></i>{{ stat.value }}
+              <i v-if="stat.trend === 'up'" class="el-icon-caret-top card--icon up--arrow"></i>
+              <i v-if="stat.trend === 'down'" class="el-icon-caret-bottom card--icon down--arrow"></i>
+            </span>
+          </div>
+        </el-card>
+      </div>
+    </div>
+    <div class="teachers">
+      <div class="title">
+        <h2 class="section--title">教师</h2>
+        <div class="teachers--right--btns">
+          <el-select v-model="sortBy" placeholder="筛选" class="下拉教师--过滤器">
+            <el-option label="教师分类" value="type"></el-option>
+            <el-option label="教师名字" value="name"></el-option>
+          </el-select>
+          <el-button class="add" @click="showAddStudentDialog = true">添加教师</el-button>
+        </div>
+      </div>
+      <div class="teachers--cards">
+        <a v-for="(item, index) in teachers" :key="index" :href="item.href" class="teacher--card">
+          <div class="img--box--cover" :class="{'img--box--cover1': item.class === 'free'}">
+            <div class="img--box">
+              <i class="el-icon-s-custom card--icon--lg" :class="item.icon"></i>
+            </div>
+          </div>
+          <p :class="item.class">{{ item.text }}</p>
+          <p :class="item.class">{{ item.name }}</p>
+        </a>
+      </div>
+    </div>
+    <div class="recent--students">
+      <div class="title">
+        <h2 class="section--title">学生</h2>
+        <div class="teachers--right--btns">
+          <el-select v-model="sortBy" placeholder="筛选" class="下拉教师--过滤器">
+            <el-option label="姓名" value="name"></el-option>
+            <el-option label="学号" value="id"></el-option>
+          </el-select>
+          <el-button class="add" @click="showAddStudentDialog = true">添加学生</el-button>
+        </div>
+      </div>
+      <div class="table">
+        <table>
+          <thead>
+          <tr>
+            <th>姓名</th>
+            <th>学号</th>
+            <th>所在班级</th>
+            <th>性别</th>
+            <th>年龄</th>
+            <th>设置</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="(student, index) in students" :key="index">
+            <td>{{ student.name }}</td>
+            <td>{{ student.id }}</td>
+            <td>{{ student.grade }}/{{ student.class }}</td>
+            <td>{{ student.gender }}</td>
+            <td>{{ student.age }}</td>
+            <td>
+                <span>
+                  <el-button type="primary" size="mini" @click="showEditDialog(student)">修改</el-button>
+                  <el-button type="danger" size="mini" @click="deleteStudent(index)">删除</el-button>
+                </span>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <el-dialog title="新增学生" :visible.sync="showAddStudentDialog">
+        <el-form :model="newStudent" :rules="rules" ref="newStudentForm">
+          <el-form-item label="姓名" prop="name">
+            <el-input v-model="newStudent.name"></el-input>
+          </el-form-item>
+          <el-form-item label="学号" prop="id">
+            <el-input v-model="newStudent.id"></el-input>
+          </el-form-item>
+          <el-form-item label="所在班级" prop="grade">
+            <el-select v-model="newStudent.grade" placeholder="选择年级">
+              <el-option v-for="grade in grades" :key="grade.value" :label="grade.label"
+                         :value="grade.value"></el-option>
+            </el-select>
+            <el-select v-model="newStudent.class" placeholder="选择班级">
+              <el-option v-for="classItem in classes" :key="classItem.value" :label="classItem.label"
+                         :value="classItem.value"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="性别" prop="gender">
+            <el-radio-group v-model="newStudent.gender">
+              <el-radio label="男">男</el-radio>
+              <el-radio label="女">女</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="年龄" prop="age">
+            <el-input v-model="newStudent.age"></el-input>
+          </el-form-item>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="showAddStudentDialog = false">取消</el-button>
+          <el-button type="primary" @click="addStudent">确定</el-button>
+        </span>
+      </el-dialog>
+
+      <el-dialog title="修改学生" :visible.sync="showEditStudentDialog">
+        <el-form :model="selectedStudent" :rules="rules" ref="selectedStudentForm">
+          <el-form-item label="姓名" prop="name">
+            <el-input v-model="selectedStudent.name"></el-input>
+          </el-form-item>
+          <el-form-item label="学号" prop="id">
+            <el-input v-model="selectedStudent.id"></el-input>
+          </el-form-item>
+          <el-form-item label="所在班级" prop="grade">
+            <el-select v-model="selectedStudent.grade" placeholder="选择年级">
+              <el-option v-for="grade in grades" :key="grade.value" :label="grade.label"
+                         :value="grade.value"></el-option>
+            </el-select>
+            <el-select v-model="selectedStudent.class" placeholder="选择班级">
+              <el-option v-for="classItem in classes" :key="classItem.value" :label="classItem.label"
+                         :value="classItem.value"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="性别" prop="gender">
+            <el-radio-group v-model="selectedStudent.gender">
+              <el-radio label="男">男</el-radio>
+              <el-radio label="女">女</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="年龄" prop="age">
+            <el-input v-model="selectedStudent.age"></el-input>
+          </el-form-item>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="showEditStudentDialog = false">取消</el-button>
+          <el-button type="primary" @click="editStudent">确定</el-button>
+        </span>
+      </el-dialog>
+    </div>
+
+  </div>
+</template>
+
+<script>
+export default {
+  name: "Test"
+}
+export default {
+  data() {
+    return {
+      selectedDate: 'today',
+      cards: [
+        {
+          title: '教师总量',
+          data: '199',
+          icon: 'user-solid',
+          stats: [
+            {icon: 's-data', value: '82%', trend: null},
+            {icon: 'caret-top', value: '20', trend: 'up'},
+            {icon: 'caret-bottom', value: '12', trend: 'down'}
+          ]
+        },
+        {
+          title: '学生总量',
+          data: '1234',
+          icon: 'user',
+          stats: [
+            {icon: 's-data', value: '90%', trend: null},
+            {icon: 'caret-top', value: '350', trend: 'up'},
+            {icon: 'caret-bottom', value: '25', trend: 'down'}
+          ]
+        },
+        {
+          title: '课程安排',
+          data: '102',
+          icon: 'date',
+          stats: [
+            {icon: 's-data', value: '86%', trend: null},
+            {icon: 'caret-top', value: '31', trend: 'up'},
+            {icon: 'caret-bottom', value: '12', trend: 'down'}
+          ]
+        },
+        {
+          title: '成绩数据',
+          data: '2653',
+          icon: 's-data',
+          stats: [
+            {icon: 's-data', value: '86%', trend: null},
+            {icon: 'caret-top', value: '60', trend: 'up'},
+            {icon: 'caret-bottom', value: '32', trend: 'down'}
+          ]
+        }
+      ],
+      teachers: [
+        {href: '#', class: 'free', icon: 'c1', text: '武术教师', name: '李莫愁'},
+        {href: '#', class: 'scheduled', icon: 'c2', text: '心理学教师', name: '乔峰'},
+        {href: '#', class: 'scheduled', icon: 'c2', text: '艺术教师', name: '阿紫'},
+        {href: '#', class: 'free', icon: 'c1', text: '美术教师', name: '杀阡陌'},
+        {href: '#', class: 'scheduled', icon: 'c2', text: '音乐教师', name: '乔碧萝'},
+        {href: '#', class: 'free', icon: 'c1', text: '化妆教师', name: '花千骨'},
+        {href: '#', class: 'scheduled', icon: 'c2', text: '特约教师', name: '东方青苍'},
+      ],
+      sortBy: "",
+      showAddStudentDialog: false,
+      showEditStudentDialog: false,
+      grades: [
+        {label: '一年级', value: '一年级'},
+        {label: '二年级', value: '二年级'},
+        {label: '三年级', value: '三年级'}
+      ],
+      classes: [
+        {label: '1班', value: '1班'},
+        {label: '2班', value: '2班'},
+        {label: '3班', value: '3班'}
+      ],
+      students: [
+        {
+          name: "张三",
+          id: "1001",
+          grade: '一年级',
+          class: '1班',
+          registration: "30/10/2202",
+          gender: "男",
+          age: "10岁",
+        },
+        {
+          name: "李诗诗",
+          id: "1002",
+          grade: '一年级',
+          class: '1班',
+          registration: "30/10/2202",
+          gender: "女",
+          age: "11岁",
+        },
+        {
+          name: "小红",
+          id: "1003",
+          grade: '一年级',
+          class: '1班',
+          registration: "29/10/2202",
+          gender: "女",
+          age: "12岁",
+        },
+        {
+          name: "小明",
+          id: "1004",
+          grade: '一年级',
+          class: '1班',
+          registration: "29/01/2201",
+          gender: "男",
+          age: "15岁",
+        },
+        {
+          name: "小王",
+          id: "1005",
+          grade: '一年级',
+          class: '1班',
+          registration: "29/10/2202",
+          gender: "男",
+          age: "10岁",
+        },
+        {
+          name: "小李",
+          id: "1006",
+          grade: '一年级',
+          class: '1班',
+          registration: "28/10/2202",
+          gender: "女",
+          age: "16岁",
+        },
+      ],
+      newStudent: {
+        name: "",
+        id: "",
+        grade: '',
+        class: '',
+        registration: "",
+        gender: "",
+        age: "",
+      },
+      selectedStudent: {
+        name: "",
+        id: "",
+        grade: '',
+        class: '',
+        registration: "",
+        gender: "",
+        age: "",
+      },
+      rules: {
+        name: [
+          {required: true, message: "请输入姓名", trigger: "blur"},
+          {min: 2, max: 10, message: "长度在 2 到 10 个字符", trigger: "blur"},
+        ],
+        id: [
+          {required: true, message: "请输入学号", trigger: "blur"},
+          {min: 4, max: 10, message: "长度在 4 到 10 个字符", trigger: "blur"},
+        ],
+        grade: [
+          {required: true, message: "请选择年级", trigger: "change"},
+        ],
+        class: [
+          {required: true, message: "请选择班级", trigger: "change"},
+        ],
+        registration: [
+          {required: true, message: "请选择注册日期", trigger: "change"},
+        ],
+        gender: [
+          {required: true, message: "请选择性别", trigger: "change"},
+        ],
+        age: [
+          {required: true, message: "请输入年龄", trigger: "blur"},
+        ],
+      },
+    }
+  },
+  methods: {
+    addStudent() {
+      this.$refs["newStudentForm"].validate((valid) => {
+        if (valid) {
+          this.students.push(this.newStudent);
+          this.showAddStudentDialog = false;
+          this.$message({
+            message: "添加成功",
+            type: "success",
+          });
+        } else {
+          return false;
+        }
+      });
+    },
+    showEditDialog(student) {
+      this.showEditStudentDialog = true;
+      this.selectedStudent = student;
+    },
+    editStudent() {
+      this.$refs["selectedStudentForm"].validate((valid) => {
+        if (valid) {
+          const index = this.students.findIndex(
+            (student) => student.id === this.selectedStudent.id
+          );
+          this.students.splice(index, 1, this.selectedStudent);
+          this.showEditStudentDialog = false;
+          this.$message({
+            message: "修改成功",
+            type: "success",
+          });
+        } else {
+          return false;
+        }
+      });
+    },
+    deleteStudent(index) {
+      this.$confirm("确认删除该学生？", "提示", {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning",
+      })
+        .then(() => {
+          this.students.splice(index, 1);
+          this.$message({
+            message: "删除成功",
+            type: "success",
+          });
+        })
+        .catch(() => {
+          return false;
+        });
+    },
+    changeMenu() {
+      let menu = document.querySelector('.menu')
+      let sidebar = document.querySelector('.sidebar')
+      let mainContent = document.querySelector('.main--content')
+
+      menu.onclick = function () {
+        sidebar.classList.toggle('active')
+        mainContent.classList.toggle('active')
+      }
+    },
+    myCommand(command) {
+      switch (command) {
+        case "personalInfo":
+          this.personalInfo();
+          break;
+        case "changePassword":
+          this.changePassword();
+          break;
+        case "notification":
+          this.notification();
+          break;
+        case "logout":
+          this.logout();
+          break;
+      }
+    },
+    personalInfo() {
+      // 添加个人信息的方法
+    },
+    changePassword() {
+      // 添加修改密码的方法
+    },
+    notification() {
+      // 添加消息提醒的方法
+    },
+    logout() {
+      // 添加退出登录的方法
+      console.log('添加退出登录的方法？')
+      localStorage.removeItem('isLogin')
+      this.$router.push('/login')
+
+    },
+  }
+}
+</script>
+
+<style scoped>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Roboto', sans-serif;
+}
+
+body {
+  position: relative;
+  width: 100%;
+}
+
+.header {
+  height: 60px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid #f1f1f1;
+  background-color: #324057;
+}
+
+.logo {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  width: 300px;
+  padding-left: 40px;
+}
+
+.logo span {
+  color: #5073fb;
+}
+
+.search--notification--profile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: calc(100% - 300px);
+  padding: 0 40px;
+}
+
+.search {
+  background-color: #f1f4f8;
+  border-radius: 50px;
+  width: 400px;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.search input {
+  background-color: transparent;
+  outline: none;
+  border: none;
+  text-indent: 15px;
+  width: 85%;
+}
+
+.search button {
+  outline: none;
+  border: none;
+  border-radius: 50%;
+  background-color: #fff;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search button i {
+  font-size: 1.1rem;
+  color: #5073fb;
+}
+
+.notification--profile {
+  display: flex;
+  align-items: center;
+}
+
+.picon {
+  cursor: pointer;
+  margin-left: 20px;
+  font-size: 1.1rem;
+  padding: 5px;
+  border-radius: 5px;
+}
+
+.lock {
+  color: #5073fb;
+  background-color: rgba(80, 115, 251, .2);
+}
+
+.bell {
+  color: #f1d243;
+  background-color: rgba(241, 210, 67, .2);
+}
+
+.chat {
+  color: #70d7a5;
+  background-color: rgba(112, 215, 165, .2);
+}
+
+.profile {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  background-color: #5073fb;
+  border: 1px solid #5073fb;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.profile .icon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 110%;
+  height: 110%;
+  object-fit: cover;
+}
+
+.main {
+  position: relative;
+  width: 100%;
+  min-height: calc(100vh - 60px);
+}
+
+
+/* sidebar */
+
+.sidebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 300px;
+  background-color: #324057;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-right: 2px solid #f1f1f1;
+  transition: .3s;
+}
+
+.sidebar.active {
+  width: 103px;
+  overflow: hidden;
+}
+
+.sidebar.active .sidebar--item {
+  display: none;
+}
+
+li {
+  list-style: none;
+}
+
+a {
+  text-decoration: none;
+}
+
+.sidebar--items a,
+.sidebar--bottom-items a {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+  color: #fff;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.sidebar--items a:hover,
+.sidebar--bottom-items a:hover {
+  background-color: #5073fb;
+  color: #fff;
+}
+
+#active--link {
+  background-color: #5073fb;
+  color: #fff;
+}
+
+.sidebar--bottom-items li:last-child a {
+  margin-bottom: 0;
+}
+
+.icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20px;
+  font-size: 22px;
+}
+
+.icon-0 {
+  color: #5073fb;
+}
+
+.icon-1 {
+  color: #a280e9;
+}
+
+.icon-2 {
+  color: #70d7a5;
+
+}
+
+.icon-3 {
+  color: #85ade3;
+}
+
+.icon-4 {
+  /*color: #e36ac8;*/
+  color: rgb(241, 210, 67);
+}
+
+.icon-5 {
+  color: #e36ac8;
+}
+
+.icon-6 {
+  color: #5f5ce0;
+}
+
+.icon-7 {
+  color: #e86786;
+}
+
+.icon-8 {
+  color: #f1d243;
+}
+
+
+/* main--content */
+
+.main--content {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: calc(100% - 300px);
+  padding: 0 40px;
+  overflow-y: scroll;
+  transition: .3s;
+}
+
+.main--content.active {
+  width: calc(100% - 103px);
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  margin-top: 30px;
+}
+
+.section--title {
+  font-weight: 400;
+}
+
+.dropdown {
+  outline: none;
+  border: none;
+  background-color: #f1f4f8;
+  border-radius: 5px;
+  width: 150px;
+  padding: 5px;
+}
+
+.cards {
+  display: flex;
+  gap: 20px;
+}
+
+.card {
+  cursor: pointer;
+  padding: 20px;
+  border-radius: 20px;
+  min-width: 230px;
+  height: auto;
+  transition: .3s;
+}
+
+.card:hover {
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+}
+
+.card--data {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.card h1 {
+  font-size: 30px;
+  margin-top: 10px;
+}
+
+.card--icon--lg {
+  font-size: 71px;
+  margin: 0 auto;
+}
+
+.c1 {
+  color: #70d7a5;
+  background-color: #f0fbf6;
+}
+
+.c2 {
+  color: #aebffd;
+  background-color: #edf1ff;
+}
+
+.card--stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 5px;
+}
+
+.card--stats span {
+  display: flex;
+  align-items: center;
+}
+
+.card--icon {
+  margin-right: 5px;
+}
+
+.stat--icon {
+  color: #5f5ce0;
+}
+
+.up--arrow {
+  color: #70d7a5;
+}
+
+.down--arrow {
+  color: #e86786;
+}
+
+.card-1 {
+  background-color: rgba(80, 115, 251, .1);
+}
+
+.card-1 .card--title {
+  color: rgba(80, 115, 251, 1);
+}
+
+.card-1 .card--icon--lg {
+  color: rgba(80, 115, 251, .4);
+}
+
+.card-2 {
+  background-color: rgba(241, 210, 67, .1);
+}
+
+.card-2 .card--title {
+  color: rgba(241, 210, 67, 1);
+}
+
+.card-2 .card--icon--lg {
+  color: rgba(241, 210, 67, .4);
+}
+
+.card-3 {
+  background-color: rgba(112, 215, 165, .1);
+}
+
+.card-3 .card--title {
+  color: rgba(112, 215, 165, 1);
+}
+
+.card-3 .card--icon--lg {
+  color: rgba(112, 215, 165, .4);
+}
+
+.card-4 {
+  background-color: rgba(227, 106, 200, .1);
+}
+
+.card-4 .card--title {
+  color: rgba(227, 106, 200, 1);
+}
+
+.card-4 .card--icon--lg {
+  color: rgba(227, 106, 200, .4);
+}
+
+
+/* teachers */
+/*教师们*/
+.teachers--right--btns {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+}
+
+.add {
+  display: flex;
+  align-items: center;
+  padding: 5px 10px;
+  outline: none;
+  border: none;
+  background-color: #5073fb;
+  color: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: .3s;
+}
+
+.add:hover {
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+}
+
+.add i {
+  margin-right: 10px;
+  padding: 5px;
+  background-color: #fff;
+  border-radius: 50%;
+  color: #000;
+}
+
+.teachers--cards {
+  display: flex;
+  gap: 20px;
+}
+
+.teacher--card {
+  padding: 20px;
+  border-radius: 20px;
+  height: auto;
+  transition: .3s;
+  border: 2px solid #f1f1f1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: .8rem;
+}
+
+.teacher--card:hover {
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+}
+
+.img--box--cover {
+  border: 1px solid #5073fb;
+  padding: 2px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-bottom: 10px;
+}
+
+.img--box--cover1 {
+  border: 1px solid #70d7a5;
+}
+
+.img--box {
+  position: relative;
+  width: 71px;
+  height: 71px;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.free {
+  color: #70d7a5;
+}
+
+/*中学教师*/
+.scheduled {
+  color: #5073fb;
+}
+
+
+/* recent--students */
+/*学生*/
+.recent--students {
+  margin-bottom: 20px;
+}
+
+.table {
+  height: 200px;
+  overflow-y: scroll;
+}
+
+table {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+  cursor: pointer;
+}
+
+tr {
+  border-bottom: 1px solid #f1f1f1;
+}
+
+td,
+th {
+  padding-block: 10px;
+}
+
+.edit {
+  color: #70d7a5;
+  margin-right: 10px;
+}
+
+.delete {
+  color: #e86786;
+}
+
+
+/* responsive starts here */
+
+@media screen and (max-width: 1350px) {
+  .cards,
+  .teachers--cards {
+    overflow-x: scroll;
+  }
+}
+
+@media screen and (max-width: 1024px) {
+  table {
+    min-width: 600px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .logo {
+    padding-left: 30px;
+    width: fit-content;
+  }
+
+  .search--notification--profile {
+    padding: 0 20px;
+    margin-left: auto;
+  }
+
+  .main--content {
+    padding: 0 20px;
+  }
+
+  .sidebar {
+    padding: 20px;
+  }
+
+  .sidebar.active {
+    width: 85px;
+  }
+
+  .main--content.active {
+    width: calc(100% - 85px);
+  }
+}
+
+@media screen and (max-width: 590px) {
+  .search,
+  .lock,
+  .chat {
+    display: none;
+  }
+
+  .notification--profile {
+    margin-left: auto;
+  }
+
+  .search--notification--profile {
+    width: fit-content;
+  }
+
+  .sidebar {
+    transform: translateX(-100%);
+    z-index: 10;
+    background-color: #324057;
+  }
+
+  .sidebar.active {
+    transform: translateX(0);
+    width: 300px;
+  }
+
+  .sidebar.active .sidebar--item {
+    display: block;
+  }
+
+  .main--content {
+    width: calc(100% - 0px);
+  }
+
+  .main--content.active {
+    width: calc(100% - 0px);
+  }
+}
+
+@media screen and (max-width: 450px) {
+  .teacher--filter {
+    display: none;
+  }
+
+  .main--content {
+    padding: 0 10px;
+  }
+
+  .logo {
+    padding-left: 10px;
+  }
+
+  .search--notification--profile {
+    padding: 0 10px;
+  }
+
+  .sidebar {
+    padding: 10px;
+  }
+}
+
+</style>
+任仕达 深圳 充电桩
